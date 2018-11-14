@@ -108,7 +108,7 @@ file(GLOB_RECURSE POINTGREY_HEADER ${POINTGREY_INCLUDE_DIR}*/flycapture/FlyCaptu
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES igvc_2019
+#  LIBRARIES whitelinedetection
 #  CATKIN_DEPENDS roscpp
 #  DEPENDS system_lib
 )
@@ -127,7 +127,7 @@ include_directories(
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/igvc_2019.cpp
+#   src/${PROJECT_NAME}/whitelinedetection.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -138,7 +138,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/igvc_2019_node.cpp)
+# add_executable(${PROJECT_NAME}_node src/whitelinedetection.cpp)
 add_executable(WhiteLineDetection WhiteLineDetection.cpp)
 target_link_libraries(WhiteLineDetection ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${POINTGREY_LIB})
 
@@ -197,7 +197,7 @@ target_link_libraries(WhiteLineDetection ${catkin_LIBRARIES} ${OpenCV_LIBRARIES}
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_igvc_2019.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_whitelinedetection.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
