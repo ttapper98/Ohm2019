@@ -32,14 +32,14 @@ class Odometry
 
   public:
     /* Setters */
-    void updatePosition();
+    void updatePosition();	
     void updateVelocity();
 
     /* Getters */
     int getEncoderLeftCount();
     int getEncoderRightCount();
     RobotPosition getPosition();
-    geometry_msgs::Twist::ConstPtr& getVelocity(); //Replace with smart pointer
+    std::unique_ptr<geometry_msgs::Twist::ConstPtr> getVelocity();
 
 };
 
