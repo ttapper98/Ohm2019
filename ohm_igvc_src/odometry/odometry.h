@@ -30,7 +30,7 @@ class Odometry
     RobotPosition position;
     RobotVelocity velocity;
 
-  public:``
+  public:
     /* Setters */
     void updatePosition();
     void updateVelocity();
