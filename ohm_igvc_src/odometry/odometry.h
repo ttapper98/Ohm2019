@@ -39,7 +39,7 @@ class Odometry
     int getEncoderLeftCount();
     int getEncoderRightCount();
     RobotPosition getPosition();
-    geometry_msgs::Twist::ConstPtr& msg getVelocity(); //Replace with smart pointer
+    geometry_msgs::Twist::ConstPtr& getVelocity(); //Replace with smart pointer
 
 };
 
