@@ -13,8 +13,8 @@
 #### If the node does not compile, verify the permissions for all the installed files, including libvnproglib-cpp.pc
 
 ## Future Goals
-*	Remove threadpool
-*	Publish location data as sensor_msgs/NavSatFix
-*	Publish IMU data as sensor_msgs/Imu
-*	Move vnproglib into package
-*	Add option to begin publish only when GPSFix is true (?)
+1.  Move vnproglib into package
+1.  Remove threadpool
+1.  Publish location data as sensor_msgs/NavSatFix
+1.  Publish IMU data as sensor_msgs/Imu
+1.  Remove old message formats
