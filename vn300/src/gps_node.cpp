@@ -1,8 +1,6 @@
 #include <ros/ros.h>
 #include <ros/console.h>
 #include <vn/sensors/sensors.h>
-#include <boost/bind.hpp>
-#include "ThreadPool.h"
 
 #include <vn300/Pose.h>
 #include <vn300/Velocities.h>
@@ -37,8 +35,6 @@ class vn300_node {
 
 		vn::sensors::VnSensor sensor;
 
-		nbsdx::concurrent::ThreadPool<5> workers; // 5 worker threads so we don't get a slowdown from serializing all the messages we get
-
 		ros::Publisher pose;
 		ros::Publisher velocity;
 		ros::Publisher status;
@@ -54,18 +50,15 @@ class vn300_node {
 		vn300_node();
 		~vn300_node() {
 			sensor.disconnect();
-			workers.JoinAll();
 		};
 
 		bool ok() { return sensor.isConnected(); };
 
-		// publishing wrappers allow us to add the message serialization to the thread pool
+		// publishing wrappers so the handler can still publish
 
-		void publish_pose_wrapper(vn300::Pose msg) { pose.publish(msg); };
-		void publish_velocity_wrapper(vn300::Velocities msg) { velocity.publish(msg); };
-		void publish_status_wrapper(vn300::Status msg) { status.publish(msg); };
-
-		unsigned published() { return workers.JobsRemaining(); }; // debug function
+		void publish_pose(vn300::Pose msg) { pose.publish(msg); };
+		void publish_velocity(vn300::Velocities msg) { velocity.publish(msg); };
+		void publish_status(vn300::Status msg) { status.publish(msg); };
 };
 
 /*
@@ -129,7 +122,7 @@ std::string cookSensorError(vn::protocol::uart::SensorError e) {
 		p - the packet received from the sensor
 		index - packet count so far
 	description:
-		receives binary packets from sensor, extracts data, and sends job to thread pool to serialize the message and send it.
+		receives binary packets from sensor, extracts data, and publishes it.
 */
 
 void vn300_packet_handler(void *userdata, vn::protocol::uart::Packet &p, size_t index) {
@@ -137,7 +130,7 @@ void vn300_packet_handler(void *userdata, vn::protocol::uart::Packet &p, size_t 
 	using namespace vn::math;
 	using namespace vn::protocol::uart;
 
-	vn300_node *obj = (vn300_node *)userdata; // nasty, but it'll do
+	vn300_node *obj = (vn300_node *)userdata; // nasty, but it's literally the only way
 
 	if(p.type() == Packet::TYPE_BINARY) {
 		//ROS_INFO_THROTTLE(2, "Binary packet recevied");
@@ -159,7 +152,7 @@ void vn300_packet_handler(void *userdata, vn::protocol::uart::Packet &p, size_t 
 				msg.position[i + 3] = pos_u[i];
 			}
 
-			obj->workers.AddJob(boost::bind(&vn300_node::publish_pose_wrapper, obj, msg));
+			obj->publish_pose(msg);
 
 		} else if(p.isCompatible(COMMONGROUP_ANGULARRATE | COMMONGROUP_VELOCITY, TIMEGROUP_NONE, IMUGROUP_NONE, GPSGROUP_VELU, ATTITUDEGROUP_NONE, INSGROUP_NONE)) {			
 			// p is a velocities packet
@@ -178,7 +171,7 @@ void vn300_packet_handler(void *userdata, vn::protocol::uart::Packet &p, size_t 
 				msg.angular[i] = angular_rate[i];
 			}
 
-			obj->workers.AddJob(boost::bind(&vn300_node::publish_velocity_wrapper, obj, msg));
+			obj->publish_velocity(msg);
 
 		} else if(p.isCompatible(COMMONGROUP_INSSTATUS, TIMEGROUP_NONE, IMUGROUP_NONE, GPSGROUP_NUMSATS | GPSGROUP_FIX, ATTITUDEGROUP_NONE, INSGROUP_NONE)) {			
 			// p is a status packet
@@ -201,7 +194,7 @@ void vn300_packet_handler(void *userdata, vn::protocol::uart::Packet &p, size_t 
 			msg.fix = gps_fix;
 			msg.gps_error = (bool)(ins_stat & GPS_ERROR_MASK);
 
-			obj->workers.AddJob(boost::bind(&vn300_node::publish_status_wrapper, obj, msg));
+			obj->publish_status(msg);
 			
 		} else {
 			//ROS_INFO("Unknown packet found");

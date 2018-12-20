@@ -14,7 +14,7 @@
 
 ## Future Goals
 1.  ~~Move vnproglib into package~~
-1.  Remove threadpool
+1.  ~~Remove threadpool~~
 1.  Publish location data as sensor_msgs/NavSatFix
 1.  Publish IMU data as sensor_msgs/Imu
 1.  Remove old message formats
