@@ -3,7 +3,6 @@ project(vn300)
 
 ## Add support for C++11, supported in ROS Kinetic and newer
 add_definitions(-std=c++11)
-set(PKG_CONFIG_USE_CMAKE_PREFIX_PATH true)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -14,10 +13,6 @@ find_package(catkin REQUIRED
     message_runtime
 	std_msgs
 )
-
-## Necessary for finding libvnprog
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(VNPROG REQUIRED libvnproglib-cpp)
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED)
@@ -79,24 +74,18 @@ catkin_package(
 ## Build ##
 ###########
 
+add_subdirectory(vnproglib-1.0)
+
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-include_directories(
-	include 
-	${catkin_INCLUDE_DIRS}
-	${Boost_INCLUDE_DIRS} 
-	${VNPROG_INCLUDE_DIRS}
-)
+include_directories(include vnproglib-1.0/include ${catkin_INCLUDE_DIRS})
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(vn300_node src/gps_node.cpp)
 
-add_dependencies(vn300_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(vn300_node ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries( vn300_node
-	${catkin_LIBRARIES}
-	${VNPROG_LIBRARIES}
-)
+target_link_libraries(vn300_node vncpp ${catkin_LIBRARIES})
