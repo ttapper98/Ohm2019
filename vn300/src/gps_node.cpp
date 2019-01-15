@@ -1,5 +1,6 @@
 #include <ros/ros.h>
 #include <ros/console.h>
+#include <sensor_msgs/NavSatFix.h>
 #include <vn/sensors/sensors.h>
 
 #include <vn300/Pose.h>
@@ -134,23 +135,31 @@ void vn300_packet_handler(void *userdata, vn::protocol::uart::Packet &p, size_t 
 
 	if(p.type() == Packet::TYPE_BINARY) {
 		//ROS_INFO_THROTTLE(2, "Binary packet recevied");
-		if(p.isCompatible(COMMONGROUP_YAWPITCHROLL | COMMONGROUP_POSITION, TIMEGROUP_NONE, IMUGROUP_NONE, GPSGROUP_POSU, ATTITUDEGROUP_YPRU, INSGROUP_NONE)) {	
+		if(p.isCompatible(COMMONGROUP_POSITION, TIMEGROUP_NONE, IMUGROUP_NONE, GPSGROUP_FIX, ATTITUDEGROUP_NONE, INSGROUP_NONE)) {	
 			// p is a pose packet
-			vn300::Pose msg;
+			sensor_msgs::NavSatFix msg;
 
 			msg.header.stamp = ros::Time::now();
-
-			vec3f ypr = p.extractVec3f();
-			vec3d pos_lla = p.extractVec3d();
-			vec3f pos_u = p.extractVec3f();
-			vec3f ypr_u = p.extractVec3f();
 			
-			for(int i = 0; i < 3; i++) {
-				msg.heading[i] = ypr[i];
-				msg.position[i] = pos_lla[i];
-				msg.heading[i + 3] = ypr_u[i];
-				msg.position[i + 3] = pos_u[i];
+			vec3d pos_lla = p.extractVec3d();
+			uint8_t gps_fix = p.extractUint8();
+
+			if(gps_fix < 2) 
+			{
+				msg.status.status = msg.status.STATUS_NO_FIX;
 			}
+			else
+			{
+				msg.status.status = gps_fix - 2;
+			}
+			
+			msg.status.service = 5;
+
+			msg.latitude = pos_lla[0];
+			msg.latitude = pos_lla[1];
+			msg.latitude = pos_lla[2];
+
+			msg.position_covariance_type = 0;
 
 			obj->publish_pose(msg);
 
@@ -227,11 +236,11 @@ void vn300_node::setup(int pose_rate, int vel_rate, int status_rate) {
 	BinaryOutputRegister pose_bor(
 		ASYNCMODE_PORT1,
 		20,
-		COMMONGROUP_YAWPITCHROLL | COMMONGROUP_POSITION,
+		COMMONGROUP_POSITION,
 		TIMEGROUP_NONE,
 		IMUGROUP_NONE,
-		GPSGROUP_POSU,
-		ATTITUDEGROUP_YPRU,
+		GPSGROUP_FIX,
+		ATTITUDEGROUP_NONE,
 		INSGROUP_NONE			
 	);
 
@@ -304,7 +313,7 @@ vn300_node::vn300_node() :
 
 	ROS_INFO("Connected to %s at %d baud", device.c_str(), rate);
 
-	pose = node.advertise< vn300::Pose >("pose", true);
+	pose = node.advertise< sensor_msgs::NavSatFix >("pose", true);
 	velocity = node.advertise< vn300::Velocities >("velocities", true);
 	status = node.advertise< vn300::Status >("status", true);
 
