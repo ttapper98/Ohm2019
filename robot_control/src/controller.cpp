@@ -25,7 +25,9 @@ class robotController
 		};
 
 		robotController();
-		void update_state();	
+		void update_state();
+		void manualCallback();
+		void autoCallback();	
 
 	private:
 		bool automatic;	//sets up booleans to be input into switching case
@@ -36,11 +38,23 @@ class robotController
 
 		STATE robostate; 
 		STATE prev_state;
-		//make another variable for state before switching case of type state
-		//check if statements possibly else if
-		//signals make it second type of state
 }
 
+robotController::manualCallback(const geometry_msgs::Twist::ConstPtr &msg)
+{
+	if (robostate == MANUAL)
+	{
+		pub.publish(msg);
+	}		
+}
+
+robotController::autoCallback(const geometry_msgs::Twist::ConstPtr &msg)
+{
+	if (robostate == AUTOMATIC)
+	{
+		pub.publish(msg);
+	}
+}
 
 robotController::update_state()
 {
@@ -78,15 +92,15 @@ robotController::update_state()
 		break;
 
 		case KILL:
-			if (!kill)
-			{
-				robostate = MANUAL;
-			}
-			
-			else if (!kill && pause)
+			if (!kill && pause)
 			{
 				robostate = PAUSE;
 				prev_state = MANUAL;
+			}
+			
+			else if (!kill)
+			{
+				robostate = MANUAL;
 			}
 			
 			else if (low_voltage)
@@ -146,6 +160,12 @@ int main(int argc, char **argv)
 	ros::NodeHandle nh;
 	
 	ros::Rate rate(2); //determine a rate that works for this ask matt!!!
+
+	ros::Subscriber manualSub = nh.subscribe("manual_signal", 1, &robotController::manualCallback);
+	ros::Subscriber autoSub = nh.subscribe("auto_signal", 1, &robotController::autoCallback);
+
+	ros::Publisher pub = nh.advertise<geometry_msgs::Twist>("Twistmsg", 1)
+
 
 	/*while(ros::ok())
 	{
