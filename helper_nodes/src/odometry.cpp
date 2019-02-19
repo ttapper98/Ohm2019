@@ -12,11 +12,11 @@
 
 class odometry {
   public:
-    odometry();
-    void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &fix);
+	odometry();
+	void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &fix);
 	void imu_callback(const sensor_msgs::Imu::ConstPtr &imu);
 	void encoder_callback(const isc_shared_msgs::EncoderCounts::ConstPtr &counts);
-    bool convert_callback(ohm_igvc_srvs::coordinate_convert::Request &rq, ohm_igvc_srvs::coordinate_convert::Response &rp);
+	bool convert_callback(ohm_igvc_srvs::coordinate_convert::Request &rq, ohm_igvc_srvs::coordinate_convert::Response &rp);
 
 	double gps_x(double lon) { 
 		//ROS_INFO("K_EW = %f", K_EW);
@@ -34,17 +34,17 @@ class odometry {
 
   private:
 	// ros objects
-    ros::Subscriber position_sub, imu_sub, encoder_sub;
-    ros::Publisher pose_pub, odom_pub;
-    ros::ServiceServer coord_convert;
-    ros::NodeHandle node;
+	ros::Subscriber position_sub, imu_sub, encoder_sub;
+	ros::Publisher pose_pub, odom_pub;
+	ros::ServiceServer coord_convert;
+	ros::NodeHandle node;
 	ros::Time last_odom_update;
-	
+
 	// frame id's for TF
 	std::string world_frame_id, map_frame_id, odom_frame_id, base_link_frame_id;
 
 	// world frame variables
-    ohm_igvc_msgs::Target origin;
+	ohm_igvc_msgs::Target origin;
 	double K_NS, K_EW;
 	geometry_msgs::Pose2D world_position
 
@@ -53,13 +53,13 @@ class odometry {
 	double baseline;
 	geometry_msgs::Pose2D odom_position;
 	nav_msgs::Odometry odom;
-	
+
 	// rotation variables
 	sensor_msgs::Imu imu_data, imu_data_prev;
 	double rotation_delta;
 
 	// tf
-    tf::TransformBroadcaster world_br, odom_br;
+	tf::TransformBroadcaster world_br, odom_br;
 	geometry_msgs::TransformStamped t;
 };
 
@@ -71,8 +71,8 @@ odometry::odometry() {
 
 	ros::NodeHandle nh_private("~");
 	nh_private.param("K_NS", K_NS, K_NS);
-    nh_private.param("origin_latitude", origin.latitude, 0.0); // in degrees
-    nh_private.param("origin_longitude", origin.longitude, 0.0);
+	nh_private.param("origin_latitude", origin.latitude, 0.0); // in degrees
+	nh_private.param("origin_longitude", origin.longitude, 0.0);
 
 	nh_private.param("world_frame", world_frame_id, "world");
 	nh_private.param("map_frame", map_frame_id, "map");
@@ -88,42 +88,42 @@ odometry::odometry() {
 	ROS_INFO("K_NS = %f", K_NS);
 	ROS_INFO("K_EW = %f", K_EW);
 
-    position_sub = node.subscribe<sensor_msgs::NavSatFix>("navsat", 5, &odometry::gps_callback, this);
+	position_sub = node.subscribe<sensor_msgs::NavSatFix>("navsat", 5, &odometry::gps_callback, this);
 	imu_sub = node.subscribe<sensor_msgs::Imu>("imu", 5, &odometry::imu_callback, this);
 	coord_convert = node.advertiseService("coordinate_convert", &odometry::convert_callback, this);
 
-    pose_pub = node.advertise<geometry_msgs::Pose2D>("pose", 1);
+	pose_pub = node.advertise<geometry_msgs::Pose2D>("pose", 1);
 	odom_pub = node.advertise<nav_msgs::Odometry>("odom", 1);
 
-    odom_position.x = 0.0;
-    odom_position.y = 0.0;
-    odom_position.theta = 0.0;
+	odom_position.x = 0.0;
+	odom_position.y = 0.0;
+	odom_position.theta = 0.0;
 
 	tick_to_cm = ((utility::geometry::pi * diameter) / ticks_per_rev); // calculate how far one tick takes the wheel
 }
 
 void odometry::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &fix) {
-    world_position.x = gps_x(fix->longitude);
+	world_position.x = gps_x(fix->longitude);
 	world_position.y = gps_y(fix->latitude);
 
-    world_position.theta = tf::getYaw(imu_data.orientation);
-	
+	world_position.theta = tf::getYaw(imu_data.orientation);
+
 	t.header.stamp = ros::Time::now();
 	t.header.frame_id = world_frame_id; // THIS SHOULD BE WORLD TO MAP, NOT MAP TO BASE LINK
 	t.child_frame_id = map_frame_id; // PLZ FIX U MORON
-	
-	t.transform.translation.x = world_position.x;
-  	t.transform.translation.y = world_position.y;
-  	t.transform.translation.z = 0.0;
-  	t.transform.rotation = imu_data.orientation;
 
-    world_br.sendTransform(t);
+	t.transform.translation.x = world_position.x;
+	t.transform.translation.y = world_position.y;
+	t.transform.translation.z = 0.0;
+	t.transform.rotation = imu_data.orientation;
+
+	world_br.sendTransform(t);
 
 	pose_pub.publish(position);
 }
 
 void odometry::imu_callback(const sensor_msgs::Imu::ConstPtr &imu) {
-	imu_data_prev = imu_data;	
+	imu_data_prev = imu_data;
 	imu_data = *imu;
 	rotation_delta = utility::circular_range::wrap(tf::getYaw(imu_data_prev) - tf::getYaw(imu_data), 360.0);
 }
@@ -160,7 +160,7 @@ void odometry::encoder_callback(const isc_shared_msgs::EncoderCounts::ConstPtr &
 
 	odom_br.sendTransform(t);
 	odom_pub.publish(odom);
-	
+
 	// update the time
 	last_odom_update = current_time;
 }
@@ -175,9 +175,9 @@ bool odometry::convert_callback(ohm_igvc_srvs::coordinate_convert::Request &rq, 
 int main(int argc, char **argv){
 	ros::init(argc, argv, "odometry");
 
-    odometry node;
+	odometry node;
 
-    ros::spin();
+	ros::spin();
 
-    return 0;
+	return 0;
 }
