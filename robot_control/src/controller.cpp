@@ -26,8 +26,8 @@ class robotController
 
 		void robotController();
 		void update_state();
-		void manualCallback();
-		void autoCallback();	
+		void manualCallback(const geometry_msgs::Twist::ConstPtr &msg);
+		void autoCallback(const geometry_msgs::Twist::ConstPtr &msg);	
 
 	private:
 		bool automatic;	//sets up booleans to be input into switching case
