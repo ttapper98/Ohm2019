@@ -24,7 +24,7 @@ class robotController
 			MANUAL
 		};
 
-		robotController();
+		void robotController();
 		void update_state();
 		void manualCallback();
 		void autoCallback();	
@@ -40,7 +40,7 @@ class robotController
 		STATE prev_state;
 }
 
-robotController::manualCallback(const geometry_msgs::Twist::ConstPtr &msg)
+void robotController::manualCallback(const geometry_msgs::Twist::ConstPtr &msg)
 {
 	if (robostate == MANUAL)
 	{
@@ -48,7 +48,7 @@ robotController::manualCallback(const geometry_msgs::Twist::ConstPtr &msg)
 	}		
 }
 
-robotController::autoCallback(const geometry_msgs::Twist::ConstPtr &msg)
+void robotController::autoCallback(const geometry_msgs::Twist::ConstPtr &msg)
 {
 	if (robostate == AUTOMATIC)
 	{
@@ -56,7 +56,7 @@ robotController::autoCallback(const geometry_msgs::Twist::ConstPtr &msg)
 	}
 }
 
-robotController::update_state()
+void robotController::update_state()
 {
 	
 	switch(robostate)
@@ -161,8 +161,8 @@ int main(int argc, char **argv)
 	
 	ros::Rate rate(2); //determine a rate that works for this ask matt!!!
 
-	ros::Subscriber manualSub = nh.subscribe("manual_signal", 1, &robotController::manualCallback);
-	ros::Subscriber autoSub = nh.subscribe("auto_signal", 1, &robotController::autoCallback);
+	ros::Subscriber manualSub = nh.subscribe("manual_signal", 1, &robotController::manualCallback, robotController);
+	ros::Subscriber autoSub = nh.subscribe("auto_signal", 1, &robotController::autoCallback, robotController);
 
 	ros::Publisher pub = nh.advertise<geometry_msgs::Twist>("Twistmsg", 1)
 
