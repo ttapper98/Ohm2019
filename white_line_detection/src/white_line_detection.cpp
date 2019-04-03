@@ -2,11 +2,9 @@
 #include <flycapture/FlyCapture2.h>
 #include <opencv2/core/ocl.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
-#include <ros/ros.h>
+//#include <ros/ros.h>
 using namespace std;
-using namespace FlyCapture2;
 
 class CameraNode
 {
@@ -15,23 +13,22 @@ class CameraNode
 	FlyCapture2::Image rawImage, encodedImage, bgrImage; //Contains the raw and converted frames from the camera.
 	FlyCapture2::Error capture;
 
-	int low_H = 0, low_S = 0, low_V = 200, high_H = 180, high_S = 255, high_V = 255; // lower and upper limits for HSV slider
-	int erosionIter = 3;
-	cv::UMat GPU_input, GPU_hsvImage, GPU_binaryImage, GPU_erosion, GPU_transmtx, GPU_transformed, GPU_resize; //for use on GPU
+	int low_B = 200, low_G = 200, low_R = 200, high_B = 255, high_G = 255, high_R = 255; // lower and upper limits for HSV slider
+	int sample_Size = 10;
+	cv::UMat U_input, U_hsvImage, U_binaryImage, U_erosion, U_transmtx, U_transformed, U_resize; //for use on GPU
 	cv::Mat image, intermediate, transmtx;
-	cv::Rect ROI = cv::Rect(462, 4, 1170, 935);
+	cv::Rect ROI = cv::Rect(112, 12, 1670 - 112, 920 - 12);
 	std::vector<cv::Point2f> quad_pts, square_pts;
 	std::vector<cv::Point> pixelCoordinates;
 	std::vector<int> xPos, yPos;
 
 	//empty callback functions but it is the only way to increment the sliders
-	static void on_low_H_thresh_trackbar(int, void *) {}
-	static void on_high_H_thresh_trackbar(int, void *) {}
-	static void on_low_S_thresh_trackbar(int, void *) {}
-	static void on_high_S_thresh_trackbar(int, void *) {}
-	static void on_low_V_thresh_trackbar(int, void *) {}
-	static void on_high_V_thresh_trackbar(int, void *) {}
-	static void on_erosion_trackbar(int, void *) {}
+	static void on_low_B_thresh_trackbar(int, void *) {}
+	static void on_high_B_thresh_trackbar(int, void *) {}
+	static void on_low_G_thresh_trackbar(int, void *) {}
+	static void on_high_G_thresh_trackbar(int, void *) {}
+	static void on_low_R_thresh_trackbar(int, void *) {}
+	static void on_high_R_thresh_trackbar(int, void *) {}
 
   public:
 	CameraNode()
@@ -71,10 +68,10 @@ class CameraNode
 		quad_pts = {Q1, Q2, Q3, Q4};
 
 		transmtx = cv::getPerspectiveTransform(quad_pts, square_pts);
-		transmtx.copyTo(GPU_transmtx);
-		int width = GPU_binaryImage.rows;
-		int height = GPU_binaryImage.cols;
-		GPU_transformed = cv::UMat::zeros(height, width, CV_8UC3);
+		transmtx.copyTo(U_transmtx);
+		int width = U_binaryImage.rows;
+		int height = U_binaryImage.cols;
+		U_transformed = cv::UMat::zeros(height, width, CV_8UC3);
 	}
 	void setupOCL()
 	{
@@ -132,32 +129,36 @@ class CameraNode
 		intermediate = cv::Mat(bgrImage.GetRows(), bgrImage.GetCols(), CV_8UC3,
 							   bgrImage.GetData(), rowBytes);
 		image = intermediate.clone();
-		image.copyTo(GPU_input);
+		image.copyTo(U_input);
 	}
 
 	void imageFiltering()
 	{
-		cv::cvtColor(GPU_input, GPU_hsvImage, CV_BGR2HSV);
-		cv::inRange(GPU_hsvImage, cv::Scalar(low_H, low_S, low_V), cv::Scalar(high_H, high_S, high_V), GPU_binaryImage);
-		cv::erode(GPU_binaryImage, GPU_erosion, cv::Mat(), cv::Point(-1, -1), 2);
+
+		cv::inRange(U_input, cv::Scalar(low_B, low_G, low_R), cv::Scalar(high_B, high_G, high_R), U_binaryImage);
+		cv::erode(U_binaryImage, U_erosion, cv::Mat(), cv::Point(-1, -1), 2);
 	}
 
 	void shiftPerspective()
 	{
-		cv::warpPerspective(GPU_erosion, GPU_transformed, GPU_transmtx, GPU_transformed.size());
-		//cv::imshow("warp",GPU_transformed);
-		GPU_resize = GPU_transformed(ROI);
+		cv::warpPerspective(U_erosion, U_transformed, U_transmtx, U_transformed.size());
+		//cv::imshow("warp",U_transformed);
+		U_resize = U_transformed(ROI);
 	}
 
 	void getPixelDistance()
 	{
 
-		cv::findNonZero(GPU_resize, pixelCoordinates);
+		cv::findNonZero(U_resize, pixelCoordinates);
 		for (size_t i = 0; i < pixelCoordinates.size(); i++)
 		{
-			xPos.push_back(pixelCoordinates[i].x);
-			yPos.push_back(pixelCoordinates[i].y);
+			if (i % sample_Size == 0)
+			{
+				xPos.push_back(pixelCoordinates[i].x);
+				yPos.push_back(pixelCoordinates[i].y);
+			}
 		}
+		std::cout << pixelCoordinates.size() << " " << xPos.size() << "  ";
 		xPos.clear();
 		yPos.clear();
 
@@ -169,47 +170,43 @@ class CameraNode
 	void createGUI()
 	{
 		cv::namedWindow("original", CV_WINDOW_FREERATIO);
-		cv::namedWindow("hsv", CV_WINDOW_FREERATIO);
 		cv::namedWindow("erosion", CV_WINDOW_FREERATIO);
-		cv::namedWindow("binary", CV_WINDOW_FREERATIO);
+		//cv::namedWindow("binary", CV_WINDOW_FREERATIO);
 		cv::namedWindow("warp", CV_WINDOW_FREERATIO);
 		cv::namedWindow("TRACKBARS", CV_WINDOW_FREERATIO);
 		//*****************GUI related *********************************
-		cv::createTrackbar("Low Hue", "TRACKBARS", &low_H, 180, on_low_H_thresh_trackbar);
-		cv::createTrackbar("Low Sat", "TRACKBARS", &low_S, 255, on_low_S_thresh_trackbar);
-		cv::createTrackbar("Low Val", "TRACKBARS", &low_V, 255, on_low_V_thresh_trackbar);
-		cv::createTrackbar("High Hue", "TRACKBARS", &high_H, 180, on_high_H_thresh_trackbar);
-		cv::createTrackbar("High Sat", "TRACKBARS", &high_S, 255, on_high_S_thresh_trackbar);
-		cv::createTrackbar("High Val", "TRACKBARS", &high_V, 255, on_high_V_thresh_trackbar);
-		cv::createTrackbar("Erosion value", "TRACKBARS", &erosionIter, 6, on_erosion_trackbar);
+		cv::createTrackbar("Low Blue", "TRACKBARS", &low_B, 255, on_low_B_thresh_trackbar);
+		cv::createTrackbar("Low Green", "TRACKBARS", &low_G, 255, on_low_G_thresh_trackbar);
+		cv::createTrackbar("Low Red", "TRACKBARS", &low_R, 255, on_low_R_thresh_trackbar);
+		cv::createTrackbar("High Blue", "TRACKBARS", &high_B, 255, on_high_B_thresh_trackbar);
+		cv::createTrackbar("High Green", "TRACKBARS", &high_G, 255, on_high_G_thresh_trackbar);
+		cv::createTrackbar("High Red", "TRACKBARS", &high_R, 255, on_high_R_thresh_trackbar);
 	}
 	void display(bool enable)
 	{
 		if (enable)
 		{
-			cv::imshow("original", image);
-			cv::imshow("binary", GPU_binaryImage);
-			cv::imshow("warp", GPU_transformed);
-			cv::imshow("hsv", GPU_hsvImage);
-			cv::imshow("erosion", GPU_erosion);
+			cv::imshow("original", U_input);
+			//cv::imshow("binary", U_binaryImage);
+			cv::imshow("warp", U_resize);
+			cv::imshow("erosion", U_erosion);
 		}
 	}
 };
 
 int main(int argc, char **argv)
 {
-	ros::init(argc, argv, "white_line_detection");
-	ros::NodeHandle nh;
-
-	bool enableDebug = true;
+	//ros::init(argc, argv, "white_line_detection");
+	//ros::NodeHandle nh;
+	bool enableDebug = false;
 	CameraNode whiteLineDetection;
 	whiteLineDetection.setupOCL();
 	whiteLineDetection.createGUI();
 	whiteLineDetection.setupWarp(662, 315, 1263, 318, 1371, 522, 573, 520, 1.5015);
 
-	while (ros::ok())
+	while ((char)cv::waitKey(1) != 'q')
 	{
-		cv::waitKey(1);
+
 		whiteLineDetection.ptgrey2CVMat();
 		whiteLineDetection.imageFiltering();
 		whiteLineDetection.shiftPerspective();
@@ -219,44 +216,4 @@ int main(int argc, char **argv)
 	}
 
 	return 0;
-}
-
-void setupOCL()
-{
-	cv::setUseOptimized(true);
-	cv::ocl::setUseOpenCL(true);
-	if (cv::useOptimized())
-	{
-		cout << "OpenCL optimizations enabled" << endl;
-	}
-	else
-	{
-		cout << "OpenCL optimizations NOT enabled" << endl;
-	}
-
-	if (!cv::ocl::haveOpenCL())
-	{
-		cout << "no opencl detected" << endl;
-	}
-
-	cv::ocl::Context context;
-	if (!context.create(cv::ocl::Device::TYPE_GPU))
-	{
-		cout << "failed to initialize device" << endl;
-	}
-	cout << context.ndevices() << " GPU device(s) detected." << endl;
-
-	cout << "************************" << endl;
-	for (size_t i = 0; i < context.ndevices(); i++)
-	{
-		cv::ocl::Device device = context.device(i);
-		cout << "name: " << device.name() << endl;
-		cout << "available: " << device.available() << endl;
-		cout << "img support: " << device.imageSupport() << endl;
-		cout << device.OpenCL_C_Version() << endl;
-	}
-	cout << "************************" << endl;
-
-	cv::ocl::Device d = cv::ocl::Device::getDefault();
-	cout << d.OpenCLVersion() << endl;
 }
