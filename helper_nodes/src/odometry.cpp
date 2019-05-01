@@ -166,8 +166,9 @@ void odometry::encoder_callback(const isc_shared_msgs::EncoderCounts::ConstPtr &
 }
 
 bool odometry::convert_callback(ohm_igvc_srvs::coordinate_convert::Request &rq, ohm_igvc_srvs::coordinate_convert::Response &rp) {
-	rp.coordinate.y = gps_x(rq.coordinate.longitude);
-	rp.coordinate.x = gps_y(rq.coordinate.latitude);
+	rp.coordinate.position.x = gps_x(rq.coordinate.longitude);
+	rp.coordinate.position.y = gps_y(rq.coordinate.latitude);
+	rp.coordinate.orientation = tf::createQuaternionFromYaw(rq.coordinate.heading);
 
 	return true;
 }
