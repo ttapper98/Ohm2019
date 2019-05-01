@@ -3,8 +3,7 @@
 #include <opencv2/core/ocl.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
-//#include <ros/ros.h>
-using namespace std;
+#include <ros/ros.h>
 
 class CameraNode
 {
@@ -15,9 +14,10 @@ class CameraNode
 
 	int low_B = 200, low_G = 200, low_R = 200, high_B = 255, high_G = 255, high_R = 255; // lower and upper limits for HSV slider
 	int sample_Size = 10;
+	double A, B, C, D; // calibration constants
 	cv::UMat U_input, U_hsvImage, U_binaryImage, U_erosion, U_transmtx, U_transformed, U_resize; //for use on GPU
 	cv::Mat image, intermediate, transmtx;
-	cv::Rect ROI = cv::Rect(112, 12, 1670 - 112, 920 - 12);
+	cv::Rect ROI = cv::Rect(112, 12, 1670 - 112, 920 - 12); // TODO: change to params. (x, y, width, height)
 	std::vector<cv::Point2f> quad_pts, square_pts;
 	std::vector<cv::Point> pixelCoordinates;
 	std::vector<int> xPos, yPos;
@@ -33,13 +33,19 @@ class CameraNode
   public:
 	CameraNode()
 	{
+		ros::NodeHandle nh("~");
+		nh.param("calibration_constants/A", A, 0.0);
+		nh.param("calibration_constants/B", B, 0.0);
+		nh.param("calibration_constants/C", C, 0.0);
+		nh.param("calibration_constants/D", D, 0.0);
+		
 		capture = camera.Connect(0);
 		if (capture != FlyCapture2::PGRERROR_OK)
 		{
-			cout << "Make sure the Camera is plugged in" << endl;
+			ROS_DEBUG_ERROR("Could not connect to camera. Please check connection");
+		} else {
+			capture = camera.StartCapture();
 		}
-
-		capture = camera.StartCapture();
 	}
 	~CameraNode()
 	{
@@ -47,13 +53,30 @@ class CameraNode
 		camera.Disconnect();
 	}
 	void setupWarp(int tl_x, int tl_y, int tr_x, int tr_y, int br_x, int br_y, int bl_x, int bl_y, double r)
-	{
+	{ // TODO: change these parameters to ros params
+		int tl_x, tl_y;
+		int tr_x, tr_y;
+		int br_x, br_y;
+		int bl_x, bl_y;
+		double ratio; // width / height of the actual panel on the ground
+
+		ros::NodeHandle nh("~");
+		
+		nh.param("pixel_coordinates/top_left/x", tl_x, 0.0);
+		nh.param("pixel_coordinates/top_left/y", tl_y, 0.0);
+		nh.param("pixel_coordinates/top_right/x", tr_x, 0.0);
+		nh.param("pixel_coordinates/top_right/y", tr_y, 0.0);
+		nh.param("pixel_coordinates/bottom_right/x", br_x, 0.0);
+		nh.param("pixel_coordinates/bottom_right/y", br_y, 0.0);
+		nh.param("pixel_coordinates/bottom_left/x", bl_x, 0.0);
+		nh.param("pixel_coordinates/bottom_left/y", bl_y, 0.0);
+		nh.param("pixel_coordinates/ratio", ratio, 1.0);
+
 		cv::Point Q1 = cv::Point2f(tl_x, tl_y); //top left pixel coordinate
 		cv::Point Q2 = cv::Point2f(tr_x, tr_y); //top right
 		cv::Point Q3 = cv::Point2f(br_x, br_y); //bottom right
 		cv::Point Q4 = cv::Point2f(bl_x, bl_y); //bottom left
 
-		double ratio = r; // width / height of the actual panel on the ground
 		double boardH = sqrt((Q3.x - Q2.x) * (Q3.x - Q2.x) + (Q3.y - Q2.y) * (Q3.y - Q2.y));
 		double boardW = ratio * boardH;
 
@@ -118,7 +141,7 @@ class CameraNode
 		capture = camera.RetrieveBuffer(&rawImage);
 		if (capture != FlyCapture2::PGRERROR_OK)
 		{
-			std::cout << "Have you tried plugging it in?" << std::endl;
+			ROS_DEBUG_WARN("Could not retrieve image!"); // TODO: change to ROS ERROR
 		}
 		// convert to bgr
 		FlyCapture2::Image bgrImage;
@@ -162,8 +185,8 @@ class CameraNode
 		xPos.clear();
 		yPos.clear();
 
-		//geometry_msgs::Point32 pixelLocation;
-		//pixelLocation.x = (A * i) + B;
+		//geometry_msgs::Point32 pixelLocation; // TODO: add calibration constants as ros params
+		//pixelLocation.x = (A * i) + B; 
 		//pixelLocation.y = (C * j) + D;
 		//msg.pixelLocations.push_back(pixelLocation);
 	}
@@ -182,7 +205,7 @@ class CameraNode
 		cv::createTrackbar("High Green", "TRACKBARS", &high_G, 255, on_high_G_thresh_trackbar);
 		cv::createTrackbar("High Red", "TRACKBARS", &high_R, 255, on_high_R_thresh_trackbar);
 	}
-	void display(bool enable)
+	void display(bool enable) // TODO: add param for displaying windows or not
 	{
 		if (enable)
 		{
@@ -204,7 +227,7 @@ int main(int argc, char **argv)
 	whiteLineDetection.createGUI();
 	whiteLineDetection.setupWarp(662, 315, 1263, 318, 1371, 522, 573, 520, 1.5015);
 
-	while ((char)cv::waitKey(1) != 'q')
+	while ((char)cv::waitKey(1) != 'q') //  TODO: add ros ok check here
 	{
 
 		whiteLineDetection.ptgrey2CVMat();
