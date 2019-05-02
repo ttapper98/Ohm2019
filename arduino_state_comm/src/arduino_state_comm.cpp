@@ -1,12 +1,18 @@
 #include <ros/ros.h>
+#include <limits>
 #include <serial/serial.h>
 #include <serial/utils/serial_listener.h>
 #include <string>
-#include <sstream>
+#include <boost/algorithm/string.hpp>
+#include <boost/lexical_cast.hpp>
+#include <vector>
 
-#include <ohm_igvc_msgs/RobotState.h>
-#include <ohm_igvc_msgs/ArduinoInfo.h>
+#include <sensor_msgs/BatteryState.h>
+#include <std_msgs/String.h>
+#include <std_msgs/Bool.h>
 #include <vn300/Status.h>
+
+#define float_NaN std::numeric_limits<float>::quiet_NaN
 
 class ArduinoStateComm
 {
@@ -17,23 +23,29 @@ class ArduinoStateComm
 
         // Description: Function disconnects the Arduino.
         void arduinoDisconnect();
+
         // Description: Function connects the Arduino.
         void arduinoConnect();
+
         // Description: Function sends a command to the Arduino.
         // Parameters: A string with the command to send
         void arduinoSendCommand(string command);
+
         // Description: Callback function for the robot state topic
         void robotStateReceived_callback(const ohm_igvc_msgs::RobotState& message);
+
         // Description: Callback function for the GPS status topic
         void gpsStatusReceived_callback(const vn300::Status& message);
+
         // Description: Function reads the from the Arduino
         void readArduino();
+
         // Description: Function publishes values read from the Arduino
         void publishArduinoInfo(int values[]);
 
         // Public members for the Arduino port name, serial port object, and listener
         std::string arduinoPortName;
-        serial::Serial *arduinoSerialPort;
+		serial::Serial arduinoSerialPort;
         serial::utils::SerialListener serialListener;
 
     private:
@@ -41,21 +53,26 @@ class ArduinoStateComm
         ros::Subscriber robotStateSub;
         ros::Subscriber gpsStatusSub;
 
-        // Private member for the publisher for estop and kill states
+        // Private member for the publisher for kill state
         ros::Publisher arduinoKillStatePub;
+		// Private member for the publisher for pause state
+		ros::Publisher arduinoPauseStatePub;
         // Private member for the publisher for the batteries
         ros::Publisher arduinoBatteryPub;  
 }; // END of class Arduino state communication
 
-ArduinoStateComm::ArduinoStateComm(ros::NodeHandle& nodeHandle)
+ArduinoStateComm::ArduinoStateComm()
 {
+	ros::NodeHandle nodeHandle;
+
     // Subscribe to topic. 1 = topic name, 2 = queue size, 3 = callback function, 4 = object to call function on
     robotStateSub = nodeHandle.subscribe("robotState", 1, &ArduinoStateComm::robotStateReceived_callback, this);
     gpsStatusSub = nodeHandle.subscribe("gpsStatus", 1, &ArduinoStateComm::gpsStatusReceived_callback, this);
 
     // Publish to topic.arduinoInfoPub
-    arduinoKillStatePub = nodeHandle.advertise<ohm_igvc_msgs::ArduinoKillState>("arduino_kill_state", 1);
-    arduinoBatteryPub = nodeHandle.advertise<ohm_igvc_msgs::ArduinoBattery>("arduino_batteries", 1);
+    arduinoKillStatePub = nodeHandle.advertise<std_msgs::String>("arduino_kill_state", 1);
+	arduinoPauseStatePub = nodeHandle.advertise<std_msgs::String>("arduino_pause_state", 1);
+    arduinoBatteryPub = nodeHandle.advertise<sensor_msgs::BatteryState>("arduino_batteries", 1);
 } // END of ArduinoStateComm constructor
 
 void ArduinoStateComm::arduinoDisconnect()
@@ -64,11 +81,6 @@ void ArduinoStateComm::arduinoDisconnect()
     {
         serialListener.stopListening();
     } // END of if the serial listener is listening
-    if(arduinoSerialPort != NULL)
-    {
-	    delete arduinoSerialPort;
-	    arduinoSerialPort = NULL;
-	} // END of if the serial port is not null
 } // END of arduinoDisconnect() function
 
 void ArduinoStateComm::arduinoConnect()
@@ -82,40 +94,39 @@ void ArduinoStateComm::arduinoConnect()
 	arduinoDisconnect();
 
     // Create and configure new serial port
-	arduinoSerialPort = new Serial();
-	arduinoSerialPort->setPort(arduinoPortName);
-	arduinoSerialPort->setBaudrate(9600);
-	arduinoSerialPort->setBytesize(serial::eightbits);
-	arduinoSerialPort->setParity(serial::parity_even);
-	serial::Timeout to = serial::Timeout::simpleTimeout(10);
-	arduinoSerialPort->setTimeout(to);
+	Serial port(arduinoPortName);
+	port->setBaudrate(9600);
+	port->setBytesize(serial::eightbits);
+	port->setParity(serial::parity_even);
+	port->setTimeout(serial::Timeout::simpleTimeout(10));
 
-    arduinoSerialPort->open();
+    port->open();
 
     serialListener.setChunkSize(2);
-    serialListener.setartListening(*arduinoSerialPort);
+    serialListener.startListening(port);
+	arduinoSerialPort = port;
 	ROS_INFO("Connected to Arduino.");
 } // END of arduinoConnect() function
 
 void ArduinoStateComm::arduinoSendCommand(string command)
 {
-	ROS_INFO("Sending Arduino commend: %s", command.c_str());
+	ROS_INFO("Sending Arduino command: %s", command.c_str());
 	arduinoSerialPort->write(command+"\r\n");
 } // END of arduinoSendCommand() function
 
-void ArduinoStateComm::robotStateReceived_callback(const ohm_igvc_msgs::RobotState& message)
+void ArduinoStateComm::robotStateReceived_callback(const std_msgs::String::ConstPtr &message)
 {
-    if(message.state == "A" || message.state == "M")
+    if(message->state == "auto" || message->state == "manual")
     {
         // Send robot state to Arduino
-        arduinoSendCommand(message.state);
-    } // END of if robot state is A or M
+        arduinoSendCommand(message->state);
+    } // END of if robot state is auto or manual
 } // END of robotStateReceived_callback() function
 
-void ArduinoStateComm::gpsStatusReceived_callback(const vn300::Status& message)
+void ArduinoStateComm::gpsStatusReceived_callback(const vn300::Status::ConstPtr &message)
 {
     // Send GPS status to Arduino
-    switch(message.fix)
+    switch(message->fix)
     {
         case 0:
             arduinoSendCommand("O");
@@ -139,55 +150,70 @@ void ArduinoStateComm::readArduino()
     //      1st = kill, 2nd = pause, 3-8 = cell voltage, 9 = temp
     BufferedFilterPtr bufferFilter = serialListener.createBufferedFilter(SerialListener::delimeter_tokenizer("\r\n"));
 
-    string valueStr;
     double convertedValues[9];
 
-    string line = bufferFilter->wait(50);
-    if(!line.empty())
-    {
-        stringstream ss(line);
+    string inputLine = bufferFilter->wait(50);
 
-        for(int valueIndex = 0; valueIndex < 9; valueIndex++)
-        {
-            // Get the value using a commas a delimiter
-            getline(ss, valueStr, ',');
+	std::vector<std::string> data;
 
-            // Convert the string to an int
-            stringstream convertToDouble(valueStr);
-            convertToDouble >> convertedValues[valueIndex];
-        } // END of for loop going through all the values
+	boost::split(data, inputLine, boost::is_any_of(","));
 
-        publishArduinoInfo(convertedValues);
-    } // END of if the line isn't empty
+	if(!data.is_empty()) {
+		bool killState = boost::lexical_cast<bool>(data[0]);
+		bool pauseState = boost::lexical_cast<bool>(data[1]);
+
+		std::vector<float> cellValues;
+		for(auto cell = data.begin() + 2; cell != data.end() - 1; ++cell) {
+			cellValues.push_back(boost::lexical_cast<double>(*cell))
+		}
+
+		// double temp = boost::lexical_cast<double>(data.back());
+
+		publishArduinoInfo(killState, pauseState, cellValues, temp);
+	} else {
+		ROS_WARNING("Did not get any info from the Arduino!");
+	}
 } // END of readArduino() function
 
-void ArduinoStateComm::publishArduinoInfo(double values[])
+void ArduinoStateComm::publishArduinoInfo(bool kill, bool pause, std::vector<float> cellVoltages, float voltage)
 {
-    ohm_igvc_msgs::ArduinoKillState killStateMsg;
-    killStateMsg.kill = (values[0] == 0) ? false : true;
-    killStateMsg.pause = (values[1] == 0) ? false : true;
+	// set the state machine signals
+	std_msgs::String killSignal;
+	std_msgs::String pauseSignal;
 
-    ohm_igvc_msgs::ArduinoBattery batteryMsg;
-    batteryMsg.cell1 = values[2];
-    batteryMsg.cell2 = values[3];
-    batteryMsg.cell3 = values[4];
-    batteryMsg.cell4 = values[5];
-    batteryMsg.cell5 = values[6];
-    batteryMsg.cell6 = values[7];
-    batteryMsg.temp = values[8];
+	killSignal.data = kill;
+	pauseSignal.data = pause;
 
-    arduinoKillStatePub.publish(killStateMsg);
-    arduinoBatteryPub.publish(batteryMsg);
+	// set the battery state message
+	sensor_msgs::BatteryState batteryState;
+
+	batteryState.power_supply_status = batteryState.POWER_SUPPLY_STATUS_DISCHARGING;
+	batteryState.power_supply_health = batteryState.POWER_SUPPLY_HEALTH_GOOD;
+	batteryState.power_supply_technology = batteryState.POWER_SUPPLY_TECHNOLOGY_LIPO;
+	batteryState.voltage = voltage;
+	batteryState.cell_voltage = cellVoltages;
+
+	batteryState.current = float_NaN;
+	batteryState.capacity = float_NaN;
+	batteryState.charge = float_NaN;
+	batteryState.design_capacity = float_NaN;
+	batteryState.percentage = float_NaN;
+	batteryState.present = true;
+
+	// publish
+    arduinoKillStatePub.publish(killSignal);
+	arduinoPauseStatePub.publish(pauseSignal);
+    arduinoBatteryPub.publish(batteryState);
 } // END of publishArduinoInfo() function
 
 // Main function
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "arduino_state_comm");
-    ros::NodeHandle nh;
+    ros::NodeHandle nh("~");
 
     // Create object used to communicate states with the Arduino.
-    ArduinoStateComm arduinoObj(nh);
+    ArduinoStateComm arduinoObj();
 
     // Get the serial port name from parameters or use default
     nh.param("arduino_serial_port", arduinoObj.arduinoPortName, std::string("/dev/ttyACM0"));
