@@ -227,7 +227,7 @@ int main(int argc, char **argv)
 	whiteLineDetection.createGUI();
 	whiteLineDetection.setupWarp(662, 315, 1263, 318, 1371, 522, 573, 520, 1.5015);
 
-	while ((char)cv::waitKey(1) != 'q') //  TODO: add ros ok check here
+	while ((char)cv::waitKey(1) != 'q' && ros::ok()) //  TODO: add ros ok check here
 	{
 
 		whiteLineDetection.ptgrey2CVMat();
