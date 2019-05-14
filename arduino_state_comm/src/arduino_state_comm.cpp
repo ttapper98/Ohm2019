@@ -19,7 +19,7 @@ class ArduinoStateComm
     public:
         // Description: Constructor for the ArduinoStateComm object
         // Parameters: A ROS node handle
-        ArduinoStateComm(ros::NodeHandle& nodeHandle);
+        ArduinoStateComm();
 
         // Description: Function disconnects the Arduino.
         void arduinoDisconnect();
@@ -116,10 +116,12 @@ void ArduinoStateComm::arduinoSendCommand(string command)
 
 void ArduinoStateComm::robotStateReceived_callback(const std_msgs::String::ConstPtr &message)
 {
-    if(message->state == "auto" || message->state == "manual")
+    if(message->data == "auto") { // Send robot state to Arduino
+		arduinoSendCommand("a");
+	}
+	else if(message->data == "manual")
     {
-        // Send robot state to Arduino
-        arduinoSendCommand(message->state);
+        arduinoSendCommand("m");
     } // END of if robot state is auto or manual
 } // END of robotStateReceived_callback() function
 
@@ -221,10 +223,11 @@ int main(int argc, char **argv)
     arduinoObj.arduinoConnect();
     arduinoObj.arduinoSendCommand("Start");
 
-    ros::Rate rate(2);
+    ros::Rate rate(10);
     while(ros::ok())
     {
         arduinoObj.readArduino();
         ros::spin();
+		rate.sleep();
     } // END of while ros ok
 } // END of main() function
