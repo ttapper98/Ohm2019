@@ -12,6 +12,7 @@ find_package(catkin REQUIRED
 	message_generation
     message_runtime
 	std_msgs
+	sensor_msgs
 )
 
 ## System dependencies are found with CMake's conventions

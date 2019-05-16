@@ -58,9 +58,6 @@ class vn300_node {
 
 		// publishing wrappers so the handler can still publish
 
-		void publish_pose(vn300::Pose msg) { pose.publish(msg); };
-		void publish_velocity(vn300::Velocities msg) { velocity.publish(msg); };
-		void publish_status(vn300::Status msg) { status.publish(msg); };
 };
 
 /*
@@ -162,9 +159,9 @@ void vn300_packet_handler(void *userdata, vn::protocol::uart::Packet &p, size_t 
 
 			msg.position_covariance_type = 0;
 
-			obj->publish_pose(msg);
+			obj->pose.publish(msg);
 
-		} else if(p.isCompatible(COMMONGROUP_QTN | COMMONGROUP_ANGULARRATE | COMMONGROUP_ACCEL, TIMEGROUP_NONE, IMUGROUP_NONE, GPSGROUP_NONE, ATTITUDEGROUP_NONE, INSGROUP_NONE)) {			
+		} else if(p.isCompatible(COMMONGROUP_QUATERNION | COMMONGROUP_ANGULARRATE | COMMONGROUP_ACCEL, TIMEGROUP_NONE, IMUGROUP_NONE, GPSGROUP_NONE, ATTITUDEGROUP_NONE, INSGROUP_NONE)) {			
 			// p is a velocities packet
 			sensor_msgs::Imu msg;
 				
@@ -187,7 +184,7 @@ void vn300_packet_handler(void *userdata, vn::protocol::uart::Packet &p, size_t 
 			msg.linear_acceleration.y = lin_accel[1];
 			msg.linear_acceleration.z = lin_accel[2];
 
-			obj->publish_velocity(msg);
+			obj->velocity.publish(msg);
 
 		} else if(p.isCompatible(COMMONGROUP_INSSTATUS, TIMEGROUP_NONE, IMUGROUP_NONE, GPSGROUP_NUMSATS | GPSGROUP_FIX, ATTITUDEGROUP_NONE, INSGROUP_NONE)) {			
 			// p is a status packet
@@ -210,13 +207,13 @@ void vn300_packet_handler(void *userdata, vn::protocol::uart::Packet &p, size_t 
 			msg.fix = gps_fix;
 			msg.gps_error = (bool)(ins_stat & GPS_ERROR_MASK);
 
-			obj->publish_status(msg);
+			obj->status.publish(msg);
 			
 		} else {
-			//ROS_INFO("Unknown packet found");
+			ROS_INFO("Unknown packet found");
 		}
 	} else {
-		//ROS_DEBUG("Ascii packet received");
+		ROS_DEBUG("Ascii packet received");
 	}
 }
 
@@ -254,7 +251,7 @@ void vn300_node::setup(int pose_rate, int vel_rate, int status_rate) {
 	BinaryOutputRegister velocities_bor(
 		ASYNCMODE_PORT1,
 		50,
-		COMMONGROUP_QTN | COMMONGROUP_ANGULARRATE | COMMONGROUP_VELOCITY,
+		COMMONGROUP_QUATERNION | COMMONGROUP_ANGULARRATE | COMMONGROUP_VELOCITY,
 		TIMEGROUP_NONE,
 		IMUGROUP_NONE,
 		GPSGROUP_NONE,

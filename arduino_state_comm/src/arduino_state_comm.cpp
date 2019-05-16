@@ -12,7 +12,7 @@
 #include <std_msgs/Bool.h>
 #include <vn300/Status.h>
 
-#define float_NaN std::numeric_limits<float>::quiet_NaN
+#define float_NaN std::numeric_limits<float>::quiet_NaN()
 
 class ArduinoStateComm
 {
@@ -21,34 +21,39 @@ class ArduinoStateComm
         // Parameters: A ROS node handle
         ArduinoStateComm();
 
+		bool isConnected();
+
+		std::string getPortName();
+
         // Description: Function disconnects the Arduino.
-        void arduinoDisconnect();
+        void disconnect();
 
         // Description: Function connects the Arduino.
-        void arduinoConnect();
+        void connect();
 
         // Description: Function sends a command to the Arduino.
         // Parameters: A string with the command to send
-        void arduinoSendCommand(string command);
+        void sendCommand(std::string command);
 
         // Description: Callback function for the robot state topic
-        void robotStateReceived_callback(const ohm_igvc_msgs::RobotState& message);
+        void robotStateReceivedCallback(const std_msgs::String::ConstPtr &message);
 
         // Description: Callback function for the GPS status topic
-        void gpsStatusReceived_callback(const vn300::Status& message);
+        void gpsStatusReceivedCallback(const vn300::Status::ConstPtr &message);
 
         // Description: Function reads the from the Arduino
-        void readArduino();
+        void readArduino(std::string token);
 
         // Description: Function publishes values read from the Arduino
-        void publishArduinoInfo(int values[]);
+        void publishArduinoInfo(bool kill, bool pause, std::vector<float> cellVoltages, float voltage);
 
-        // Public members for the Arduino port name, serial port object, and listener
-        std::string arduinoPortName;
+    private:
+		bool connected;
+		// Private members for the Arduino port name, serial port object, and listener
+		std::string arduinoPortName;
 		serial::Serial arduinoSerialPort;
         serial::utils::SerialListener serialListener;
 
-    private:
         // Private members for the subscribers for the robot state and GPS
         ros::Subscriber robotStateSub;
         ros::Subscriber gpsStatusSub;
@@ -64,26 +69,41 @@ class ArduinoStateComm
 ArduinoStateComm::ArduinoStateComm()
 {
 	ros::NodeHandle nodeHandle;
+	ros::NodeHandle nh_private("~");
+
+	nh_private.param("arduino_serial_port", arduinoPortName, std::string("/dev/ttyACM0"));
 
     // Subscribe to topic. 1 = topic name, 2 = queue size, 3 = callback function, 4 = object to call function on
-    robotStateSub = nodeHandle.subscribe("robotState", 1, &ArduinoStateComm::robotStateReceived_callback, this);
-    gpsStatusSub = nodeHandle.subscribe("gpsStatus", 1, &ArduinoStateComm::gpsStatusReceived_callback, this);
+    robotStateSub = nodeHandle.subscribe("robotState", 1, &ArduinoStateComm::robotStateReceivedCallback, this);
+    gpsStatusSub = nodeHandle.subscribe("gpsStatus", 1, &ArduinoStateComm::gpsStatusReceivedCallback, this);
 
     // Publish to topic.arduinoInfoPub
     arduinoKillStatePub = nodeHandle.advertise<std_msgs::String>("arduino_kill_state", 1);
 	arduinoPauseStatePub = nodeHandle.advertise<std_msgs::String>("arduino_pause_state", 1);
     arduinoBatteryPub = nodeHandle.advertise<sensor_msgs::BatteryState>("arduino_batteries", 1);
+
+	connected = false;
 } // END of ArduinoStateComm constructor
 
-void ArduinoStateComm::arduinoDisconnect()
+bool ArduinoStateComm::isConnected() 
+{
+	return connected;
+}
+
+std::string ArduinoStateComm::getPortName()
+{
+	return arduinoPortName;
+}
+
+void ArduinoStateComm::disconnect()
 {
     if(serialListener.isListening())
     {
         serialListener.stopListening();
     } // END of if the serial listener is listening
-} // END of arduinoDisconnect() function
+} // END of disconnect() function
 
-void ArduinoStateComm::arduinoConnect()
+void ArduinoStateComm::connect()
 {
     if(arduinoPortName.empty())
     {
@@ -91,89 +111,90 @@ void ArduinoStateComm::arduinoConnect()
         return;
 	} // END of if the port name is empty
 
-	arduinoDisconnect();
+	
+	if(connected) disconnect();
+
+	serial::Timeout timeout = serial::Timeout::simpleTimeout(10);
 
     // Create and configure new serial port
-	Serial port(arduinoPortName);
-	port->setBaudrate(9600);
-	port->setBytesize(serial::eightbits);
-	port->setParity(serial::parity_even);
-	port->setTimeout(serial::Timeout::simpleTimeout(10));
+	arduinoSerialPort.setPort(arduinoPortName);
+	arduinoSerialPort.setBaudrate(9600);
+	arduinoSerialPort.setBytesize(serial::eightbits);
+	arduinoSerialPort.setParity(serial::parity_even);
+	arduinoSerialPort.setTimeout(timeout);
 
-    port->open();
+    arduinoSerialPort.open();
 
-    serialListener.setChunkSize(2);
-    serialListener.startListening(port);
-	arduinoSerialPort = port;
+    serialListener.setChunkSize(64); // this is the number of bytes it reads at a time
+	serialListener.setTokenizer(serial::utils::SerialListener::delimeter_tokenizer("\r\n"));
+	serialListener.setDefaultHandler(boost::bind(&ArduinoStateComm::readArduino, this, _1));
+	serialListener.startListening(arduinoSerialPort);
+
 	ROS_INFO("Connected to Arduino.");
-} // END of arduinoConnect() function
 
-void ArduinoStateComm::arduinoSendCommand(string command)
+	connected = true;
+} // END of connect() function
+
+void ArduinoStateComm::sendCommand(std::string command)
 {
 	ROS_INFO("Sending Arduino command: %s", command.c_str());
-	arduinoSerialPort->write(command+"\r\n");
-} // END of arduinoSendCommand() function
+	arduinoSerialPort.write(command+"\r\n");
+} // END of sendCommand() function
 
-void ArduinoStateComm::robotStateReceived_callback(const std_msgs::String::ConstPtr &message)
+void ArduinoStateComm::robotStateReceivedCallback(const std_msgs::String::ConstPtr &message)
 {
     if(message->data == "auto") { // Send robot state to Arduino
-		arduinoSendCommand("a");
+		sendCommand("a");
 	}
 	else if(message->data == "manual")
     {
-        arduinoSendCommand("m");
+        sendCommand("m");
     } // END of if robot state is auto or manual
-} // END of robotStateReceived_callback() function
+} // END of robotStateReceivedCallback() function
 
-void ArduinoStateComm::gpsStatusReceived_callback(const vn300::Status::ConstPtr &message)
+void ArduinoStateComm::gpsStatusReceivedCallback(const vn300::Status::ConstPtr &message)
 {
     // Send GPS status to Arduino
     switch(message->fix)
     {
         case 0:
-            arduinoSendCommand("O");
+            sendCommand("O");
             break;
         case 1:
-            arduinoSendCommand("S");
+            sendCommand("S");
             break;
             case 2:
         case 3:
-            arduinoSendCommand("F");
+            sendCommand("F");
             break;
         default:
             break;
     } // END of switch
-} // END of gpsStatusReceived_callback() function
+} // END of gpsStatusReceivedCallback() function
 
-void ArduinoStateComm::readArduino()
+void ArduinoStateComm::readArduino(std::string token)
 {
-    // Create buffer filter pointer with delimiter of \r\n
     // As of 2-26-19: Each token is a string of numbers separated by commas
     //      1st = kill, 2nd = pause, 3-8 = cell voltage, 9 = temp
-    BufferedFilterPtr bufferFilter = serialListener.createBufferedFilter(SerialListener::delimeter_tokenizer("\r\n"));
-
-    double convertedValues[9];
-
-    string inputLine = bufferFilter->wait(50);
-
 	std::vector<std::string> data;
+	boost::split(data, token, boost::is_any_of(","));
 
-	boost::split(data, inputLine, boost::is_any_of(","));
-
-	if(!data.is_empty()) {
+	if(!data.empty()) {
 		bool killState = boost::lexical_cast<bool>(data[0]);
 		bool pauseState = boost::lexical_cast<bool>(data[1]);
 
 		std::vector<float> cellValues;
+		double total_voltage = 0.0;
 		for(auto cell = data.begin() + 2; cell != data.end() - 1; ++cell) {
-			cellValues.push_back(boost::lexical_cast<double>(*cell))
+			cellValues.push_back(boost::lexical_cast<double>(*cell) * (5.0 / 1024.0));
+			total_voltage += cellValues.back();
 		}
 
 		// double temp = boost::lexical_cast<double>(data.back());
 
-		publishArduinoInfo(killState, pauseState, cellValues, temp);
+		publishArduinoInfo(killState, pauseState, cellValues, total_voltage);
 	} else {
-		ROS_WARNING("Did not get any info from the Arduino!");
+		ROS_WARN("Did not get any info from the Arduino!");
 	}
 } // END of readArduino() function
 
@@ -215,19 +236,28 @@ int main(int argc, char **argv)
     ros::NodeHandle nh("~");
 
     // Create object used to communicate states with the Arduino.
-    ArduinoStateComm arduinoObj();
+    ArduinoStateComm arduinoObj;
 
-    // Get the serial port name from parameters or use default
-    nh.param("arduino_serial_port", arduinoObj.arduinoPortName, std::string("/dev/ttyACM0"));
+	while(!arduinoObj.isConnected())
+	{
+		ROS_INFO("Connecting to arduino on %s", arduinoObj.getPortName().c_str());
 
-    arduinoObj.arduinoConnect();
-    arduinoObj.arduinoSendCommand("Start");
+		try 
+		{
+    		arduinoObj.connect();
+    		arduinoObj.sendCommand("Start");
+		} catch(std::exception &e)
+		{
+			ROS_ERROR("Failed to connect to the Arduino: %s", e.what());
+		}
+		
+		if(!ros::ok()) break;
+	}
 
-    ros::Rate rate(10);
-    while(ros::ok())
-    {
-        arduinoObj.readArduino();
-        ros::spin();
-		rate.sleep();
-    } // END of while ros ok
+	if(ros::ok() && arduinoObj.isConnected()) {	
+		ros::spin();
+	}
+
+	arduinoObj.disconnect();
+
 } // END of main() function

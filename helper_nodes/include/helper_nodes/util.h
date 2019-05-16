@@ -46,9 +46,9 @@ namespace circular_range { // all of these are in degrees. wrap might work with 
 namespace geometry {
 	static constexpr double pi = std::acos(-1);
 
-	inline double degrees(double radians) { return (180.0 * radians) / pi); }
+	inline double degrees(double radians) { return ((180.0 * radians) / pi); }
 
-	inline double radians(double degrees) { return (pi * degrees) / 180.0); }
+	inline double radians(double degrees) { return ((pi * degrees) / 180.0); }
 
 	template<class point_t>
 	inline double distance(point_t a, point_t b) { return std::hypot(b.x - a.x, b.y - a.y); }
