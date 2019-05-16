@@ -155,12 +155,12 @@ int main(int argc, char **argv) {
 			// set bounds data
 			bounds.pose.position.x = r_pose.position.x;
 			bounds.pose.position.y = r_pose.position.y;
-			bounds.pose.orientation = tf::createQuaternionMsgFromYaw(circular_range::wrap(r_pose.heading - 135.0, 360.0) * (utility::geometry::pi / 180.0));
+			bounds.pose.orientation = tf::createQuaternionMsgFromYaw(utility::circular_range::wrap(r_pose.heading - 135.0, 360.0) * (utility::geometry::pi / 180.0));
 			bounds.id = 0; // left lidar bound			
 
 			pnb.markers.push_back(bounds);
 			
-			bounds.pose.orientation = tf::createQuaternionMsgFromYaw(circular_range::wrap(r_pose.heading + 135.0, 360.0) * (utility::geometry::pi / 180.0));
+			bounds.pose.orientation = tf::createQuaternionMsgFromYaw(utility::circular_range::wrap(r_pose.heading + 135.0, 360.0) * (utility::geometry::pi / 180.0));
 			bounds.id = 1; // right lidar bound
 
 			pnb.markers.push_back(bounds);
