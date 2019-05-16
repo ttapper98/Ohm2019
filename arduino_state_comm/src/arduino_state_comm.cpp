@@ -46,7 +46,7 @@ class ArduinoStateComm
 
         // Description: Function publishes values read from the Arduino
         void publishArduinoInfo(bool kill, bool pause, std::vector<float> cellVoltages, float voltage);
-
+  
     private:
 		bool connected;
 		// Private members for the Arduino port name, serial port object, and listener
@@ -101,6 +101,7 @@ void ArduinoStateComm::disconnect()
     {
         serialListener.stopListening();
     } // END of if the serial listener is listening
+
 } // END of disconnect() function
 
 void ArduinoStateComm::connect()
@@ -179,11 +180,13 @@ void ArduinoStateComm::readArduino(std::string token)
 	std::vector<std::string> data;
 	boost::split(data, token, boost::is_any_of(","));
 
-	if(!data.empty()) {
+	if(!data.empty()) 
+  {
 		bool killState = boost::lexical_cast<bool>(data[0]);
 		bool pauseState = boost::lexical_cast<bool>(data[1]);
 
 		std::vector<float> cellValues;
+    
 		double total_voltage = 0.0;
 		for(auto cell = data.begin() + 2; cell != data.end() - 1; ++cell) {
 			cellValues.push_back(boost::lexical_cast<double>(*cell) * (5.0 / 1024.0));
@@ -191,7 +194,6 @@ void ArduinoStateComm::readArduino(std::string token)
 		}
 
 		// double temp = boost::lexical_cast<double>(data.back());
-
 		publishArduinoInfo(killState, pauseState, cellValues, total_voltage);
 	} else {
 		ROS_WARN("Did not get any info from the Arduino!");
