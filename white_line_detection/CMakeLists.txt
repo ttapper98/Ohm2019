@@ -10,11 +10,18 @@ add_compile_options(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
+  sensor_msgs
 )
 
+find_package(OpenCV 3.3.1 REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+
+## Find Flycap libs
+find_library(POINTGREY_LIB NAMES libflycapture.so.2 flycapture) # find shared object file, generally in /usr/lib
+find_path(POINTGREY_INCLUDE_DIR NAMES flycapture/FlyCapture2.h) # find the include directory, generally in /usr/include
+file(GLOB_RECURSE POINTGREY_HEADER ${POINTGREY_INCLUDE_DIR}*/flycapture/FlyCapture2.h ${CMAKE_CURRENT_BINARY_DIR}/usr/include*/flycapture/FlyCapture2.h) # generate list of flycap header files
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -119,7 +126,7 @@ include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
-	/usr/include/flycapture/*
+#	/usr/include/flycapture/*
   ${POINTGREY_INCLUDE_DIR}
 )
 
@@ -136,7 +143,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/white_line_detection_node.cpp)
+add_executable(${PROJECT_NAME}_node src/white_line_detection.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -146,12 +153,14 @@ include_directories(
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(${PROJECT_NAME}_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(${PROJECT_NAME}_node
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBS}
+   ${POINTGREY_LIB}
+)
 
 #############
 ## Install ##
