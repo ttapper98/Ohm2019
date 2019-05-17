@@ -25,7 +25,9 @@ unsigned long safety_light_time = 0;
 unsigned long curr_time = 1;
 
 // *** UNFINISHED
-int swap; // Tells if the batteries have been swapped. Put two limit switches in series, so only when both batteries are inserted,
+
+//int swap; // Tells if the batteries have been swapped. Put two limit switches in series, so only when both batteries are inserted,
+
 // *** UNFINISHED
 
 
@@ -134,13 +136,14 @@ void loop()
       GPS_Read(command);
     }
   }
-
-    Serial.write(0x02); // 1 Byte
+  
+    Serial.print("$");
     check_emergency_system(); // Read and print state of emergency system. E-stop, pause, kill
     read_cells(); // Read and print cell voltages, manage warning light & buzzer
     check_temp(); // Read and print temperature
+    Serial.print("\r\n");
     past_time = curr_time;
-    Serial.write(0x03); // 1 Byte
+
     delay(75);
   
   curr_time = millis();
@@ -154,11 +157,9 @@ void arduino_read_state(char cmd)
   {
     digitalWrite(Mode_LED, HIGH);
     automode = false;
-    Serial.println("Manual");
   }
   else if (cmd == 'a' || cmd == 'A')
   {
-    Serial.println("Auto");
     automode = true;
     digitalWrite(Mode_LED, LOW);
   }
@@ -184,46 +185,14 @@ void GPS_Read(char cmd)
 
 
 // Checks and sends status of E-stop, pause and kill in the form of a byte. Pause is least-significant, then kill, then E_stop
-void check_emergency_system()
+void check_emergency_system()//fix with a list of integers for each item keep order(estop, kill, pause)
 {
-  byte states = 0; // 00000000
-
-  if (!digitalRead(estop)) // E-stop button
-  {
-    bitSet(states, 2); // 00000100
-    Serial.println("Estopped");
-    digitalWrite(estop_LED, LOW);
-  }
-  else
-  {
-    digitalWrite(estop_LED, HIGH);
-    Serial.println("Not Estopped");
-  }
-  if (digitalRead(kill)) // If robot is killed
-  {
-    digitalWrite(kill_LED, LOW);
-    bitSet(states, 1); // 00000010
-    Serial.println("Killed");
-  }
-    else
-  {
-    digitalWrite(kill_LED, HIGH);
-    Serial.println("Not Killed");
-  }
-  if (digitalRead(pause)) // If robot is paused
-  {
-    bitSet(states, 0); // 00000001
-    Serial.println("Paused");
-    digitalWrite(pause_LED, LOW);
-  }
-    else
-  {
-    Serial.println("Not Paused");
-    digitalWrite(pause_LED, HIGH);
-  }
-
-  // Ex: If robot e-stop is hit, it is not killed, and it is paused, we will have 101
-  Serial.write(states); // 1 byte
+  Serial.print(",");
+  serial.print(digitalRead(estop));
+  Serial.print(",");
+  serial.print(digitalRead(kill));
+  Serial.print(",");
+  serial.print(digitalRead(pause));
 }
 
 // Function reads cell voltages on the LiPo battery and sends results as a byte to laptop with serial communication
@@ -257,12 +226,9 @@ void read_cells()
   }
 
   for (int i = 0; i < 6; i++)
-  {
-    //Serial.write(cell_readings[i]/256); // High Byte
-    //Serial.write(cell_readings[i]%256); // Low Byte
-
-    Serial.print("Cell Difference: ");
-    Serial.print(cell_readings[i], ); 
+  { 
+    Serial.print(",");
+    Serial.print(cell_readings[i]); 
   }
 
   if (vLimit > 0) // Sound the alarm
@@ -276,11 +242,13 @@ void read_cells()
 }
 
 // Checks and sends temperature in the form of an int, must be converted to celsius double using:   temp_C = (((temp_C * 5000)/1024)-500)/10
-void check_temp()
+
+/*void check_temp()
 {
   int temp = analogRead(tempPin);
   //Serial.write(temp/256); // High Byte
   //Serial.write(temp%256); // Low Byte
-  Serial.print("Temp: ");
-  Serial.println(temp);
-}
+
+  Serial.print(",");
+  Serial.print(temp);
+}*/
