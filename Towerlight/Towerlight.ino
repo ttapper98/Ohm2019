@@ -25,7 +25,9 @@ unsigned long safety_light_time = 0;
 unsigned long curr_time = 1;
 
 // *** UNFINISHED
+
 //int swap; // Tells if the batteries have been swapped. Put two limit switches in series, so only when both batteries are inserted,
+
 // *** UNFINISHED
 
 
@@ -134,12 +136,14 @@ void loop()
       GPS_Read(command);
     }
   }
+  
     Serial.print("$");
     check_emergency_system(); // Read and print state of emergency system. E-stop, pause, kill
     read_cells(); // Read and print cell voltages, manage warning light & buzzer
     check_temp(); // Read and print temperature
     Serial.print("\r\n");
     past_time = curr_time;
+
     delay(75);
   
   curr_time = millis();
@@ -189,7 +193,6 @@ void check_emergency_system()//fix with a list of integers for each item keep or
   serial.print(digitalRead(kill));
   Serial.print(",");
   serial.print(digitalRead(pause));
-
 }
 
 // Function reads cell voltages on the LiPo battery and sends results as a byte to laptop with serial communication
@@ -223,14 +226,10 @@ void read_cells()
   }
 
   for (int i = 0; i < 6; i++)
-  {
-    //Serial.write(cell_readings[i]/256); // High Byte
-    //Serial.write(cell_readings[i]%256); // Low Byte
-    
+  { 
     Serial.print(",");
     Serial.print(cell_readings[i]); 
   }
-	
 
   if (vLimit > 0) // Sound the alarm
   {
@@ -243,11 +242,13 @@ void read_cells()
 }
 
 // Checks and sends temperature in the form of an int, must be converted to celsius double using:   temp_C = (((temp_C * 5000)/1024)-500)/10
+
 /*void check_temp()
 {
   int temp = analogRead(tempPin);
   //Serial.write(temp/256); // High Byte
   //Serial.write(temp%256); // Low Byte
+
   Serial.print(",");
   Serial.print(temp);
 }*/
