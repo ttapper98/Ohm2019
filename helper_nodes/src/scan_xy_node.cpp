@@ -85,5 +85,5 @@ int main (int argc, char** argv) {
   scan_transformer transformer;
 
   // Spin
-  ros::spin ();
+  ros::spin();
 }
