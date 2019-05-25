@@ -45,7 +45,7 @@ class ArduinoStateComm
         void readArduino(std::string token);
 
         // Description: Function publishes values read from the Arduino
-        void publishArduinoInfo(bool kill, bool pause, std::vector<double> cellVoltages, float voltage);
+        void publishArduinoInfo(bool kill, bool pause, std::vector<float> cellVoltages, float voltage);
   
     private:
 		bool connected;
@@ -185,11 +185,11 @@ void ArduinoStateComm::readArduino(std::string token)
 		bool killState = boost::lexical_cast<bool>(data[0]);
 		bool pauseState = boost::lexical_cast<bool>(data[1]);
 
-		std::vector<double> cellValues;
+		std::vector<float> cellValues;
     
 		double total_voltage = 0.0;
 		for(auto cell = data.begin() + 2; cell != data.end() - 1; ++cell) {
-			cellValues.push_back(boost::lexical_cast<double>(*cell) * (5.0 / 1024.0));
+			cellValues.push_back(boost::lexical_cast<float>(*cell) * (5.0 / 1024.0));
 			total_voltage += cellValues.back();
 		}
 
@@ -200,7 +200,7 @@ void ArduinoStateComm::readArduino(std::string token)
 	}
 } // END of readArduino() function
 
-void ArduinoStateComm::publishArduinoInfo(bool kill, bool pause, std::vector<double> cellVoltages, float voltage)
+void ArduinoStateComm::publishArduinoInfo(bool kill, bool pause, std::vector<float> cellVoltages, float voltage)
 {
 	// set the state machine signals
 	std_msgs::String killSignal;
