@@ -185,7 +185,7 @@ void ArduinoStateComm::readArduino(std::string token)
 		bool killState = boost::lexical_cast<bool>(data[0]);
 		bool pauseState = boost::lexical_cast<bool>(data[1]);
 
-		std::vector<float> cellValues;
+		std::vector<double> cellValues;
     
 		double total_voltage = 0.0;
 		for(auto cell = data.begin() + 2; cell != data.end() - 1; ++cell) {
