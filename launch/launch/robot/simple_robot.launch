@@ -40,7 +40,7 @@
 	<remap from="arduino_pause_state" to="$(arg signal_base)/pause" />
 	<remap from="arduino_batteries" to="$(arg feedback_base)/power" />
 	<include file="$(find arduino_state_comm)/launch/arduino.launch">
-		<arg name="port" value="/dev/ttyACM0" />
+		<arg name="serial_port" value="/dev/ttyACM0" />
 	</include>
 	
 	<!-- roboteq -->
