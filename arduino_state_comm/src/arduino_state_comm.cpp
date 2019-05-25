@@ -121,7 +121,7 @@ void ArduinoStateComm::connect()
 	arduinoSerialPort.setPort(arduinoPortName);
 	arduinoSerialPort.setBaudrate(9600);
 	arduinoSerialPort.setBytesize(serial::eightbits);
-	arduinoSerialPort.setParity(serial::parity_even);
+	arduinoSerialPort.setParity(serial::parity_none);
 	arduinoSerialPort.setTimeout(timeout);
 
     arduinoSerialPort.open();
@@ -182,14 +182,14 @@ void ArduinoStateComm::readArduino(std::string token)
 
 	if(!data.empty()) 
   {
-		bool killState = boost::lexical_cast<bool>(data[0]);
-		bool pauseState = boost::lexical_cast<bool>(data[1]);
+		bool killState = boost::lexical_cast<bool>(data[1]);
+		bool pauseState = boost::lexical_cast<bool>(data[2]);
 
 		std::vector<float> cellValues;
     
-		double total_voltage = 0.0;
-		for(auto cell = data.begin() + 2; cell != data.end() - 1; ++cell) {
-			cellValues.push_back(boost::lexical_cast<float>(*cell) * (5.0 / 1024.0));
+		float total_voltage = 0.0;
+		for(int cell = 3; cell < data.size(); cell++) {
+			cellValues.push_back(boost::lexical_cast<float>(cell) * (5.0 / 1024.0));
 			total_voltage += cellValues.back();
 		}
 
