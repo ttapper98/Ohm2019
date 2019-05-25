@@ -39,12 +39,15 @@
 	<remap from="arduino_kill_state" to="$(arg signal_base)/kill" />
 	<remap from="arduino_pause_state" to="$(arg signal_base)/pause" />
 	<remap from="arduino_batteries" to="$(arg feedback_base)/power" />
-	<include file="$(find arduino_state_comm)/launch/arduino.launch" />
+	<include file="$(find arduino_state_comm)/launch/arduino.launch">
+		<arg name="port" value="/dev/ttyACM0" />
+	</include>
 	
 	<!-- roboteq -->
 	<remap from="motor_control" to="$(arg actuation_base)/control" />
 	<remap from="encoder_counts" to="$(arg feedback_base)/encoders" />
 	<include file="$(find isc_roboteq_mdc2460)/launch/roboteq.launch">
+		<arg name="device" value="/dev/ttyACM1" />
 		<arg name="has_encoders" value="true" />
 		<arg name="gear_reduction" value="18.0" />
 	</include>
