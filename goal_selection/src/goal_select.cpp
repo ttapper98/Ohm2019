@@ -33,7 +33,6 @@ class waypoint {
 		}
 
 		void drive_mode_callback(const std_msgs::String::ConstPtr &drive_mode) {
-			
 			if(current_drive_mode != drive_mode->data){
 				waypoint_id = 0;
 				current_drive_mode = drive_mode->data;
@@ -47,7 +46,6 @@ class waypoint {
 		void start_path(){
 			if(current_drive_mode == auto_state_string) {
 				move_base_msgs::MoveBaseGoal goal_req;
-
 				goal_req.target_pose.header.frame_id = goal_frame_id;
 				goal_req.target_pose.header.stamp = ros::Time::now();
 				goal_req.target_pose.pose = goal;
@@ -55,9 +53,8 @@ class waypoint {
 				move_requests.sendGoal(goal_req, boost::bind(&waypoint::goal_complete, this, _1, _2));	
 			}
 		}
-
+  
 		bool get_waypoint() {
-
 				ohm_igvc_srvs::waypoint req_wp;
 
 				req_wp.request.ID = waypoint_id;
@@ -76,13 +73,13 @@ class waypoint {
 					conv_wp.request.coordinate = req_wp.response.waypoint;
 
 					if(!coordinate_convert_srv.call(conv_wp)) return false;
-				
+
 					goal = conv_wp.response.coordinate;
 				}
 
 				return true;
 		}
-
+  
 		void goal_complete(const actionlib::SimpleClientGoalState &state, const move_base_msgs::MoveBaseResult::ConstPtr &result) { 
 			if(current_drive_mode == auto_state_string){
 
@@ -109,7 +106,6 @@ class waypoint {
 		std::string base_frame_id;
 		std::string map_frame_id;
 		std::string goal_frame_id;
-
 		std::string auto_state_string;
 
 		geometry_msgs::Pose goal;
@@ -119,9 +115,9 @@ int main(int argc, char **argv){
 	
 	ros::init(argc, argv, "goal_select");
 	
-	waypoint w;
+	waypoint goal_selection;
 	
 	ros::spin();
-
+  
 	return 0;
 }
