@@ -1,0 +1,16 @@
+<launch>
+	<!-- joystick -->
+	<include file="$(find isc_joy)/launch/joystick_xbox360.launch" />
+
+	<!-- robot state control -->
+	<include file="$(find robot_state_controller)/launch/robot_state_controller/state_control.launch" />
+	
+	<!-- drive mode switch -->
+	<include file="$(find robot_state_controller)/launch/drive_mode_switch/switch.launch" />
+
+	<!-- arduino comm -->
+	<include file="$(find arduino_state_comm)/launch/" />
+	
+	<!-- roboteq -->
+	<include file="$(find isc_roboteq_mdc2460)/launch/" />
+</launch>

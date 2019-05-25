@@ -71,7 +71,7 @@ ArduinoStateComm::ArduinoStateComm()
 	ros::NodeHandle nodeHandle;
 	ros::NodeHandle nh_private("~");
 
-	nh_private.param("arduino_serial_port", arduinoPortName, std::string("/dev/ttyACM0"));
+	nh_private.param("port", arduinoPortName, std::string("/dev/ttyACM0"));
 
     // Subscribe to topic. 1 = topic name, 2 = queue size, 3 = callback function, 4 = object to call function on
     robotStateSub = nodeHandle.subscribe("robotState", 1, &ArduinoStateComm::robotStateReceivedCallback, this);
