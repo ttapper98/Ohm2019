@@ -36,7 +36,7 @@ class ArduinoStateComm
         void sendCommand(std::string command);
 
         // Description: Callback function for the robot state topic
-        void robotStateReceivedCallback(const std_msgs::String::ConstPtr &message);
+        void driveModeReceivedCallback(const std_msgs::String::ConstPtr &message);
 
         // Description: Callback function for the GPS status topic
         void gpsStatusReceivedCallback(const vn300::Status::ConstPtr &message);
@@ -55,7 +55,7 @@ class ArduinoStateComm
         serial::utils::SerialListener serialListener;
 
         // Private members for the subscribers for the robot state and GPS
-        ros::Subscriber robotStateSub;
+        ros::Subscriber driveModeSub;
         ros::Subscriber gpsStatusSub;
 
         // Private member for the publisher for kill state
@@ -74,7 +74,7 @@ ArduinoStateComm::ArduinoStateComm()
 	nh_private.param("port", arduinoPortName, std::string("/dev/ttyACM0"));
 
     // Subscribe to topic. 1 = topic name, 2 = queue size, 3 = callback function, 4 = object to call function on
-    robotStateSub = nodeHandle.subscribe("robotState", 1, &ArduinoStateComm::robotStateReceivedCallback, this);
+    driveModeSub = nodeHandle.subscribe("driveMode", 1, &ArduinoStateComm::driveModeReceivedCallback, this);
     gpsStatusSub = nodeHandle.subscribe("gpsStatus", 1, &ArduinoStateComm::gpsStatusReceivedCallback, this);
 
     // Publish to topic.arduinoInfoPub
@@ -142,7 +142,7 @@ void ArduinoStateComm::sendCommand(std::string command)
 	arduinoSerialPort.write(command+"\r\n");
 } // END of sendCommand() function
 
-void ArduinoStateComm::robotStateReceivedCallback(const std_msgs::String::ConstPtr &message)
+void ArduinoStateComm::driveModeReceivedCallback(const std_msgs::String::ConstPtr &message)
 {
     if(message->data == "auto") { // Send robot state to Arduino
 		sendCommand("a");
@@ -150,8 +150,8 @@ void ArduinoStateComm::robotStateReceivedCallback(const std_msgs::String::ConstP
 	else if(message->data == "manual")
     {
         sendCommand("m");
-    } // END of if robot state is auto or manual
-} // END of robotStateReceivedCallback() function
+    } // END of if drive mode is auto or manual
+} // END of driveModeReceivedCallback() function
 
 void ArduinoStateComm::gpsStatusReceivedCallback(const vn300::Status::ConstPtr &message)
 {
