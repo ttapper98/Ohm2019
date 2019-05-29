@@ -36,7 +36,7 @@ class ArduinoStateComm
         void sendCommand(std::string command);
 
         // Description: Callback function for the robot state topic
-        void robotStateReceivedCallback(const std_msgs::String::ConstPtr &message);
+        void driveModeReceivedCallback(const std_msgs::String::ConstPtr &message);
 
         // Description: Callback function for the GPS status topic
         void gpsStatusReceivedCallback(const vn300::Status::ConstPtr &message);
@@ -55,7 +55,7 @@ class ArduinoStateComm
         serial::utils::SerialListener serialListener;
 
         // Private members for the subscribers for the robot state and GPS
-        ros::Subscriber robotStateSub;
+        ros::Subscriber driveModeSub;
         ros::Subscriber gpsStatusSub;
 
         // Private member for the publisher for kill state
@@ -71,10 +71,10 @@ ArduinoStateComm::ArduinoStateComm()
 	ros::NodeHandle nodeHandle;
 	ros::NodeHandle nh_private("~");
 
-	nh_private.param("arduino_serial_port", arduinoPortName, std::string("/dev/ttyACM0"));
+	nh_private.param("port", arduinoPortName, std::string("/dev/ttyACM0"));
 
     // Subscribe to topic. 1 = topic name, 2 = queue size, 3 = callback function, 4 = object to call function on
-    robotStateSub = nodeHandle.subscribe("robotState", 1, &ArduinoStateComm::robotStateReceivedCallback, this);
+    driveModeSub = nodeHandle.subscribe("driveMode", 1, &ArduinoStateComm::driveModeReceivedCallback, this);
     gpsStatusSub = nodeHandle.subscribe("gpsStatus", 1, &ArduinoStateComm::gpsStatusReceivedCallback, this);
 
     // Publish to topic.arduinoInfoPub
@@ -121,7 +121,7 @@ void ArduinoStateComm::connect()
 	arduinoSerialPort.setPort(arduinoPortName);
 	arduinoSerialPort.setBaudrate(9600);
 	arduinoSerialPort.setBytesize(serial::eightbits);
-	arduinoSerialPort.setParity(serial::parity_even);
+	arduinoSerialPort.setParity(serial::parity_none);
 	arduinoSerialPort.setTimeout(timeout);
 
     arduinoSerialPort.open();
@@ -142,7 +142,7 @@ void ArduinoStateComm::sendCommand(std::string command)
 	arduinoSerialPort.write(command+"\r\n");
 } // END of sendCommand() function
 
-void ArduinoStateComm::robotStateReceivedCallback(const std_msgs::String::ConstPtr &message)
+void ArduinoStateComm::driveModeReceivedCallback(const std_msgs::String::ConstPtr &message)
 {
     if(message->data == "auto") { // Send robot state to Arduino
 		sendCommand("a");
@@ -150,8 +150,8 @@ void ArduinoStateComm::robotStateReceivedCallback(const std_msgs::String::ConstP
 	else if(message->data == "manual")
     {
         sendCommand("m");
-    } // END of if robot state is auto or manual
-} // END of robotStateReceivedCallback() function
+    } // END of if drive mode is auto or manual
+} // END of driveModeReceivedCallback() function
 
 void ArduinoStateComm::gpsStatusReceivedCallback(const vn300::Status::ConstPtr &message)
 {
@@ -182,14 +182,14 @@ void ArduinoStateComm::readArduino(std::string token)
 
 	if(!data.empty()) 
   {
-		bool killState = boost::lexical_cast<bool>(data[0]);
-		bool pauseState = boost::lexical_cast<bool>(data[1]);
+		bool killState = boost::lexical_cast<bool>(data[1]);
+		bool pauseState = boost::lexical_cast<bool>(data[2]);
 
 		std::vector<float> cellValues;
     
-		double total_voltage = 0.0;
-		for(auto cell = data.begin() + 2; cell != data.end() - 1; ++cell) {
-			cellValues.push_back(boost::lexical_cast<double>(*cell) * (5.0 / 1024.0));
+		float total_voltage = 0.0;
+		for(int cell = 3; cell < data.size(); cell++) {
+			cellValues.push_back(boost::lexical_cast<float>(cell) * (5.0 / 1024.0));
 			total_voltage += cellValues.back();
 		}
 
