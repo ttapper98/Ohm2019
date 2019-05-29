@@ -49,5 +49,6 @@
 		<arg name="device" value="/dev/ttyACM1" />
 		<arg name="has_encoders" value="true" />
 		<arg name="gear_reduction" value="18.0" />
+		<arg name="flip_inputs" value="true" />
 	</include>
 </launch>
