@@ -14,7 +14,7 @@
 	<!-- joystick -->
 	<remap from="joy" to="$(arg input_base)/joy" />
 	<remap from="joystick/xinput" to="$(arg input_base)/xinput" />
-	<remap from="manual_control" to="$(arg actuation_base)/manual_control" />
+	<remap from="manual_control_vel" to="$(arg actuation_base)/manual_control" />
 	<include file="$(find isc_joy)/launch/joystick_xbox360.launch" />
 
 	<!-- robot state control -->
@@ -28,7 +28,6 @@
 	<remap from="robot_state" to="$(arg state_base)/system" />
 	<remap from="joystick" to="$(arg input_base)/xinput" />
 	<remap from="auto_control_vel" to="$(arg actuation_base)/auto_control" />
-	<remap from="manual_control_vel" to="$(arg actuation_base)/manual_control" />
 	<remap from="control_vel" to="$(arg actuation_base)/control" />
 	<remap from="drive_mode" to="$(arg state_base)/drive_mode" />
 	<include file="$(find robot_state_controller)/launch/drive_mode_switch/switch.launch" />
