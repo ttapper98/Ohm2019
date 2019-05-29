@@ -118,7 +118,7 @@ void ArduinoStateComm::connect()
 	serial::Timeout timeout = serial::Timeout::simpleTimeout(10);
 
     // Create and configure new serial port
-	arduinoSerialPort.setPort(arduinoPortName);
+	arduinoSerialPort.setPort(arduinoPortName); //FXME POSSIBLY THE WRONG NAME?
 	arduinoSerialPort.setBaudrate(9600);
 	arduinoSerialPort.setBytesize(serial::eightbits);
 	arduinoSerialPort.setParity(serial::parity_none);
@@ -128,8 +128,8 @@ void ArduinoStateComm::connect()
 
     serialListener.setChunkSize(64); // this is the number of bytes it reads at a time
 	serialListener.setTokenizer(serial::utils::SerialListener::delimeter_tokenizer("\r\n"));
-	serialListener.setDefaultHandler(boost::bind(&ArduinoStateComm::readArduino, this, _1));
-	serialListener.startListening(arduinoSerialPort);
+	serialListener.setDefaultHandler(boost::bind(&ArduinoStateComm::readArduino, this, _1)); //FIXME
+	serialListener.startListening(arduinoSerialPort); //FIXME
 
 	ROS_INFO("Connected to Arduino.");
 
@@ -178,18 +178,18 @@ void ArduinoStateComm::readArduino(std::string token)
     // As of 2-26-19: Each token is a string of numbers separated by commas
     //      1st = kill, 2nd = pause, 3-8 = cell voltage, 9 = temp
 	std::vector<std::string> data;
-	boost::split(data, token, boost::is_any_of(","));
+	boost::split(data, token, boost::is_any_of(",")); //FIXME
 
 	if(!data.empty()) 
   {
-		bool killState = boost::lexical_cast<bool>(data[1]);
-		bool pauseState = boost::lexical_cast<bool>(data[2]);
+		bool killState = boost::lexical_cast<bool>(data[1]); //FIXME
+		bool pauseState = boost::lexical_cast<bool>(data[2]); //FIXME
 
 		std::vector<float> cellValues;
     
 		float total_voltage = 0.0;
 		for(int cell = 3; cell < data.size(); cell++) {
-			cellValues.push_back(boost::lexical_cast<float>(cell) * (5.0 / 1024.0));
+			cellValues.push_back(boost::lexical_cast<float>(cell) * (5.0 / 1024.0)); //FIXME
 			total_voltage += cellValues.back();
 		}
 
